@@ -1,1 +1,300 @@
 
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Event Horizon — Game Portal</title>
+<meta name="description" content="Event Horizon: a portal to play tons of games, right in your browser.">
+<meta name="theme-color" content="#05040d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23000' stroke='%23ff7a3d' stroke-width='10'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="stars"></canvas>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#/" aria-label="Event Horizon home">
+      <i class="orb"></i><span class="word"><b>Event Horizon</b></span>
+    </a>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Search games…" autocomplete="off" aria-label="Search games">
+    </div>
+    <nav class="nav">
+      <a href="#/" data-nav="home">Home</a>
+      <a href="#/favorites" data-nav="favorites">Favorites<span class="count-pill" id="favCount" hidden>0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="app"></main>
+
+<footer>
+  <div class="wrap"><b>EVENT HORIZON</b> &nbsp;·&nbsp; <span id="total"></span> games &nbsp;·&nbsp; Nothing escapes. Everything plays.</div>
+</footer>
+
+<script src="games.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ---------------- helpers ---------------- */
+var GAMES = (window.GAMES || []).slice();
+var $ = function(s,r){return (r||document).querySelector(s)};
+var app = $("#app");
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function byId(id){for(var i=0;i<GAMES.length;i++)if(GAMES[i].id===id)return GAMES[i];return null}
+function store(k,v){try{if(v===undefined){return JSON.parse(localStorage.getItem(k)||"null")}localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
+var favs = store("eh_favs")||[];
+var recent = store("eh_recent")||[];
+var state = {q:"",cat:"All",sort:"featured"};
+var heroTimer=null;
+
+/* fill missing fields so a half-written entry never breaks the page */
+GAMES.forEach(function(g,i){
+  g.id = g.id || ("game-"+i);
+  g.title = g.title || g.id;
+  g.category = g.category || "Other";
+  g.emoji = g.emoji || "🎮";
+  g.hue = (typeof g.hue==="number")?g.hue:((i*47)%360);
+  g.desc = g.desc || "Press play and see what's inside.";
+  g._i = i;
+});
+$("#total").textContent = GAMES.length;
+
+/* ---------------- starfield ---------------- */
+(function(){
+  var c=$("#stars"),x=c.getContext("2d"),W,H,S=[];
+  function size(){W=c.width=innerWidth;H=c.height=innerHeight;S=[];var n=Math.min(220,Math.floor(W*H/9000));
+    for(var i=0;i<n;i++)S.push({x:Math.random()*W,y:Math.random()*H,z:Math.random()*1+.2,t:Math.random()*6.28})}
+  function tick(){x.clearRect(0,0,W,H);
+    for(var i=0;i<S.length;i++){var s=S[i];s.t+=.02*s.z;s.y+=.08*s.z;if(s.y>H){s.y=0;s.x=Math.random()*W}
+      x.globalAlpha=.35+.45*Math.abs(Math.sin(s.t));x.fillStyle=s.z>.9?"#ffd9b8":"#cfc6ff";
+      x.fillRect(s.x,s.y,s.z*1.6,s.z*1.6)}
+    requestAnimationFrame(tick)}
+  addEventListener("resize",size);size();tick();
+})();
+
+/* ---------------- cards ---------------- */
+function cardHTML(g,delay){
+  var isFav = favs.indexOf(g.id)>-1;
+  return '<article class="card" style="--h:'+g.hue+';animation-delay:'+(delay||0)+'ms" data-id="'+esc(g.id)+'" tabindex="0" role="link" aria-label="Play '+esc(g.title)+'">'
+    +'<div class="art"><span>'+esc(g.emoji)+'</span></div>'
+    +(g.featured?'<i class="badge">★ Featured</i>':'')
+    +'<button class="fav'+(isFav?' on':'')+'" data-fav="'+esc(g.id)+'" aria-label="Toggle favorite" title="Favorite">'+(isFav?'♥':'♡')+'</button>'
+    +'<div class="meta"><span class="cat">'+esc(g.category)+'</span><h3>'+esc(g.title)+'</h3><p>'+esc(g.desc)+'</p></div></article>';
+}
+function bindCards(root){
+  root.addEventListener("click",function(e){
+    var f=e.target.closest("[data-fav]");
+    if(f){e.stopPropagation();toggleFav(f.getAttribute("data-fav"));return}
+    var c=e.target.closest(".card[data-id]");
+    if(c){location.hash="#/play/"+encodeURIComponent(c.getAttribute("data-id"))}
+  });
+  root.addEventListener("keydown",function(e){
+    if(e.key==="Enter"){var c=e.target.closest&&e.target.closest(".card[data-id]");if(c)location.hash="#/play/"+encodeURIComponent(c.getAttribute("data-id"))}
+  });
+}
+function toggleFav(id){
+  var i=favs.indexOf(id);
+  if(i>-1)favs.splice(i,1);else favs.push(id);
+  store("eh_favs",favs);
+  updateFavCount();
+  // update every heart in place (no full re-render so scroll position stays)
+  var on=favs.indexOf(id)>-1;
+  document.querySelectorAll('[data-fav="'+id.replace(/"/g,'\\"')+'"]').forEach(function(b){
+    b.classList.toggle("on",on);b.textContent=on?"♥":"♡";
+  });
+  var tb=$("#favBtn");if(tb){tb.classList.toggle("on",on);tb.innerHTML=(on?"♥ Favorited":"♡ Favorite")}
+  if(currentRoute().name==="favorites")render();
+}
+function updateFavCount(){
+  var p=$("#favCount");p.textContent=favs.length;p.hidden=!favs.length;
+}
+
+/* ---------------- filtering ---------------- */
+function categories(){
+  var m={};GAMES.forEach(function(g){m[g.category]=(m[g.category]||0)+1});
+  return Object.keys(m).sort();
+}
+function filtered(){
+  var q=state.q.trim().toLowerCase();
+  var list=GAMES.filter(function(g){
+    if(state.cat!=="All"&&g.category!==state.cat)return false;
+    if(!q)return true;
+    return (g.title+" "+g.category+" "+g.desc).toLowerCase().indexOf(q)>-1;
+  });
+  if(state.sort==="az")list.sort(function(a,b){return a.title.localeCompare(b.title)});
+  else if(state.sort==="za")list.sort(function(a,b){return b.title.localeCompare(a.title)});
+  else if(state.sort==="new")list.sort(function(a,b){return b._i-a._i});
+  else list.sort(function(a,b){return (b.featured?1:0)-(a.featured?1:0)||a._i-b._i});
+  return list;
+}
+
+/* ---------------- routing ---------------- */
+function currentRoute(){
+  var h=location.hash.replace(/^#\/?/,"");
+  if(h.indexOf("play/")===0)return {name:"play",id:decodeURIComponent(h.slice(5))};
+  if(h==="favorites")return {name:"favorites"};
+  return {name:"home"};
+}
+function setNav(name){
+  document.querySelectorAll("[data-nav]").forEach(function(a){a.classList.toggle("on",a.getAttribute("data-nav")===name)});
+}
+function render(){
+  clearInterval(heroTimer);
+  var r=currentRoute();
+  setNav(r.name==="play"?"":r.name);
+  if(r.name==="play")return renderPlayer(r.id);
+  if(r.name==="favorites")return renderFavs();
+  return renderHome();
+}
+addEventListener("hashchange",function(){render();window.scrollTo(0,0)});
+
+/* ---------------- home ---------------- */
+function renderHome(){
+  document.title="Event Horizon — Game Portal";
+  var feats=GAMES.filter(function(g){return g.featured});
+  if(!feats.length)feats=GAMES.slice(0,4);
+  feats=feats.slice(0,6);
+
+  var html="";
+  if(feats.length&&!state.q){
+    html+='<section class="hero" aria-label="Featured games">'
+      +feats.map(function(g,i){
+        return '<div class="hero-slide'+(i===0?' on':'')+'">'
+          +'<div class="bg" style="background:radial-gradient(circle at 75% 40%,hsl('+g.hue+',85%,52%) 0%,hsl('+(g.hue+45)+',70%,20%) 55%,#07051a 100%)"></div>'
+          +'<div class="hero-emoji">'+esc(g.emoji)+'</div>'
+          +'<div class="hero-copy"><span class="tag">'+esc(g.category)+'</span><h1>'+esc(g.title)+'</h1><p>'+esc(g.desc)+'</p>'
+          +'<a class="btn primary" href="#/play/'+encodeURIComponent(g.id)+'">▶ Play now</a></div></div>';
+      }).join("")
+      +'<div class="dots">'+feats.map(function(_,i){return '<button data-dot="'+i+'" class="'+(i===0?'on':'')+'" aria-label="Slide '+(i+1)+'"></button>'}).join("")+'</div></section>';
+  }
+
+  var rec=recent.map(byId).filter(Boolean).slice(0,8);
+  if(rec.length&&!state.q&&state.cat==="All"){
+    html+='<div class="bar"><h2>Jump back in</h2></div><div class="row" id="recentRow">'+rec.map(function(g,i){return cardHTML(g,i*40)}).join("")+'</div>';
+  }
+
+  var cats=["All"].concat(categories());
+  html+='<div class="bar"><h2 id="allTitle">All games</h2>'
+    +'<div class="chips" id="chips">'+cats.map(function(c){return '<button class="chip'+(c===state.cat?' on':'')+'" data-cat="'+esc(c)+'">'+esc(c)+'</button>'}).join("")+'</div>'
+    +'<select class="sort" id="sort" aria-label="Sort"><option value="featured">Featured first</option><option value="az">A → Z</option><option value="za">Z → A</option><option value="new">Newest</option></select></div>'
+    +'<div class="grid" id="grid"></div>';
+
+  app.innerHTML=html;
+  $("#sort").value=state.sort;
+  fillGrid();
+
+  $("#chips").addEventListener("click",function(e){
+    var b=e.target.closest("[data-cat]");if(!b)return;
+    state.cat=b.getAttribute("data-cat");
+    document.querySelectorAll("#chips .chip").forEach(function(c){c.classList.toggle("on",c===b)});
+    fillGrid();
+  });
+  $("#sort").addEventListener("change",function(e){state.sort=e.target.value;fillGrid()});
+  bindCards(app);
+
+  // hero carousel
+  var slides=app.querySelectorAll(".hero-slide"),dots=app.querySelectorAll("[data-dot]"),cur=0;
+  function go(n){cur=(n+slides.length)%slides.length;
+    slides.forEach(function(s,i){s.classList.toggle("on",i===cur)});
+    dots.forEach(function(d,i){d.classList.toggle("on",i===cur)})}
+  dots.forEach(function(d){d.addEventListener("click",function(){go(+d.getAttribute("data-dot"));restart()})});
+  function restart(){clearInterval(heroTimer);if(slides.length>1)heroTimer=setInterval(function(){go(cur+1)},6000)}
+  restart();
+}
+function fillGrid(){
+  var list=filtered(),g=$("#grid");if(!g)return;
+  var t=$("#allTitle");
+  if(t)t.innerHTML=(state.q?'Results for “'+esc(state.q)+'”':(state.cat==="All"?'All games':esc(state.cat)))+'<small>'+list.length+' game'+(list.length===1?'':'s')+'</small>';
+  g.innerHTML=list.length?list.map(function(x,i){return cardHTML(x,Math.min(i,24)*25)}).join("")
+    :'<div class="empty"><div class="big">🕳️</div><h3>Nothing out here</h3><p>'+(GAMES.length?'No games match that search.':'No games added yet — open <b>games.js</b> and add some!')+'</p></div>';
+}
+
+/* ---------------- favorites ---------------- */
+function renderFavs(){
+  document.title="Favorites — Event Horizon";
+  var list=favs.map(byId).filter(Boolean);
+  app.innerHTML='<div class="bar"><h2>Your favorites<small>'+list.length+'</small></h2></div><div class="grid" id="grid">'
+    +(list.length?list.map(function(g,i){return cardHTML(g,i*25)}).join(""):'<div class="empty"><div class="big">♡</div><h3>No favorites yet</h3><p>Tap the heart on any game to pin it here.</p></div>')
+    +'</div>';
+  bindCards(app);
+}
+
+/* ---------------- player ---------------- */
+function renderPlayer(id){
+  var g=byId(id);
+  if(!g){
+    app.innerHTML='<div class="player-page"><div class="empty"><div class="big">🌌</div><h3>Game not found</h3><p><a class="btn ghost" href="#/">← Back to portal</a></p></div></div>';
+    return;
+  }
+  document.title=g.title+" — Event Horizon";
+  recent=[g.id].concat(recent.filter(function(x){return x!==g.id})).slice(0,12);
+  store("eh_recent",recent);
+
+  var isFav=favs.indexOf(g.id)>-1;
+  var more=GAMES.filter(function(x){return x.id!==g.id});
+  more.sort(function(a,b){return (b.category===g.category)-(a.category===g.category)||a._i-b._i});
+  more=more.slice(0,9);
+
+  app.innerHTML='<section class="player-page" style="--h:'+g.hue+'">'
+    +'<div class="crumbs"><a class="back" href="#/">← Portal</a><h1>'+esc(g.emoji)+' '+esc(g.title)+'</h1><span class="cat">'+esc(g.category)+'</span></div>'
+    +'<div class="layout"><div>'
+      +'<div class="stage-box"><div class="stage" id="stage"><div class="loading" id="loading"><i class="orb"></i></div></div>'
+      +'<div class="toolbar"><button class="tbtn" id="reload">⟳ Restart</button><button class="tbtn" id="fs">⛶ Fullscreen</button>'
+      +'<button class="tbtn" id="share">🔗 Copy link</button><span class="sp"></span>'
+      +'<button class="tbtn'+(isFav?' on':'')+'" id="favBtn">'+(isFav?'♥ Favorited':'♡ Favorite')+'</button></div></div>'
+      +'<div class="about"><b>About this game</b><br>'+esc(g.desc)+'</div>'
+    +'</div><aside class="side"><h3>More to play</h3>'
+      +more.map(function(m){return '<a class="mini" style="--h:'+m.hue+'" href="#/play/'+encodeURIComponent(m.id)+'"><div class="ico">'+esc(m.emoji)+'</div><div><b>'+esc(m.title)+'</b><small>'+esc(m.category)+'</small></div></a>'}).join("")
+    +'</aside></div></section>';
+
+  var stage=$("#stage");
+  function mount(){
+    var old=stage.querySelector("iframe");if(old)old.remove();
+    $("#loading").classList.remove("off");
+    var f=document.createElement("iframe");
+    f.title=g.title;
+    f.setAttribute("allow","fullscreen; autoplay; gamepad; accelerometer; gyroscope; clipboard-write");
+    f.setAttribute("allowfullscreen","");
+    f.setAttribute("sandbox","allow-scripts allow-same-origin allow-pointer-lock allow-popups allow-forms allow-modals allow-downloads");
+    f.addEventListener("load",function(){$("#loading").classList.add("off");try{f.focus()}catch(e){}});
+    if(g.src)f.src=g.src;else f.srcdoc=g.html||"<body style='background:#05040d;color:#9a98c4;font-family:sans-serif;display:grid;place-items:center;height:100vh'>This game has no content yet.</body>";
+    stage.appendChild(f);
+  }
+  mount();
+  $("#reload").onclick=mount;
+  $("#fs").onclick=function(){
+    var el=stage;(el.requestFullscreen||el.webkitRequestFullscreen||function(){}).call(el);
+  };
+  $("#share").onclick=function(){
+    var b=this,url=location.href;
+    function done(){b.textContent="✓ Copied";setTimeout(function(){b.textContent="🔗 Copy link"},1500)}
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(url).then(done,done);else done();
+  };
+  $("#favBtn").onclick=function(){toggleFav(g.id)};
+}
+
+/* ---------------- search ---------------- */
+$("#q").addEventListener("input",function(e){
+  state.q=e.target.value;
+  if(currentRoute().name!=="home"){location.hash="#/";return}
+  // keep the hero/recent in sync: re-render when crossing empty <-> non-empty
+  var hasHero=!!$(".hero");
+  if(hasHero===!!state.q||(!state.q&&!hasHero))renderHome();else fillGrid();
+  if(state.q){var gr=$("#grid");if(gr&&gr.getBoundingClientRect().top>innerHeight*.6)gr.scrollIntoView({behavior:"smooth",block:"start"})}
+});
+$("#q").addEventListener("keydown",function(e){if(e.key==="Escape"){this.value="";state.q="";if(currentRoute().name==="home")renderHome()}});
+addEventListener("keydown",function(e){
+  if(e.key==="/"&&document.activeElement.tagName!=="INPUT"&&currentRoute().name!=="play"){e.preventDefault();$("#q").focus()}
+});
+
+updateFavCount();
+render();
+})();
+</script>
+</body>
+</html>
