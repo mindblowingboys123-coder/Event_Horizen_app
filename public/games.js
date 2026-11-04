@@ -110,12 +110,4 @@ init();requestAnimationFrame(loop);
 
 
 
-   { 
-   id:"escape-road",
-   title:"Escape Road", 
-   category:"Racing",
-   emoji:"🚓",
-   hue:5,
-   desc:"Outrun the police, dodge traffic and survive as long as you can.", src:"games/escape-road.html", featured:true 
-   },
 ];
