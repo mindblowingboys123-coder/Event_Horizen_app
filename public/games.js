@@ -33,6 +33,17 @@ window.GAMES = [
     featured: true
   },
 
+  {
+    id: "escape-road2",
+    title: "Escape Road 2",
+    category: "Racing",
+    emoji: "🚓",
+    hue: 5,
+    desc: "Outrun the police, dodge traffic and survive as long as you can. Upgraded",
+    src: "games/escape-road2.html",
+    featured: true
+  },
+
   // Add more games above this line, like this:
   // { id:"example", title:"Example", category:"Arcade", emoji:"🚀", hue:210, desc:"Replace me.", src:"games/example.html" },
 
