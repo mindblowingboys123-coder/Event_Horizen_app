@@ -22,6 +22,18 @@
 window.GAMES = [
 
   /* ---------- YOUR GAMES GO HERE ---------- */
+  {
+    id: "escape-road",
+    title: "Escape Road",
+    category: "Racing",
+    emoji: "🚓",
+    hue: 5,
+    desc: "Outrun the police, dodge traffic and survive as long as you can.",
+    src: "games/escape-road.html",
+    featured: true
+  },
+
+  // Add more games above this line, like this:
   // { id:"example", title:"Example", category:"Arcade", emoji:"🚀", hue:210, desc:"Replace me.", src:"games/example.html" },
 
 
@@ -107,7 +119,5 @@ function loop(now){var t=(now-t0)/1000;g.fillStyle='#1c0a10';g.fillRect(0,0,480,
 init();requestAnimationFrame(loop);
 <\/script></body>`
   }
-
-
 
 ];
