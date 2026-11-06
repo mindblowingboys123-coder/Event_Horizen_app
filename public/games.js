@@ -65,6 +65,17 @@ window.GAMES = [
     src: "games/level-devil.html",
     featured: true
   },
+
+  {
+    id: "bank-robbery",
+    title: "Bank Robbery",
+    category: "Shooter",
+    emoji: "🏦",
+    hue: 800,
+    desc: "Steal from a bank while defending against the police!",
+    src: "games/bank-robbery2.html",
+    featured: true
+  },
   // Add more games above this line, like this:
   // { id:"example", title:"Example", category:"Arcade", emoji:"🚀", hue:210, desc:"Replace me.", src:"games/example.html" },
 
