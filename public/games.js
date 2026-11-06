@@ -27,7 +27,7 @@ window.GAMES = [
     title: "Escape Road",
     category: "Racing",
     emoji: "🚓",
-    hue: 5,
+    hue: 60,
     desc: "Outrun the police, dodge traffic and survive as long as you can.",
     src: "games/escape-road.html",
     featured: true
@@ -38,7 +38,7 @@ window.GAMES = [
     title: "Escape Road 2",
     category: "Racing",
     emoji: "🚓",
-    hue: 5,
+    hue: 120,
     desc: "Outrun the police, dodge traffic and survive as long as you can. Upgraded",
     src: "games/escape-road2.html",
     featured: true
@@ -49,7 +49,7 @@ window.GAMES = [
     title: "Getaway Shootout",
     category: "Shooting",
     emoji: "🔫",
-    hue: 5,
+    hue: 175,
     desc: "Outrun the police, dodge traffic and survive as long as you can. Upgraded",
     src: "games/getaway-shootout.html",
     featured: true
