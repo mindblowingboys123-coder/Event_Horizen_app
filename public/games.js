@@ -56,13 +56,13 @@ window.GAMES = [
   },
 
   {
-    id: "bank-robbery",
-    title: "Bank Robbery",
-    category: "Shooting",
-    emoji: "🏦",
-    hue: 275,
-    desc: "Steal from a bank while defending from the police!",
-    src: "games/bank-robbery.html",
+    id: "level-devil",
+    title: "Level Devil",
+    category: "Platformer",
+    emoji: "👺",
+    hue: 700,
+    desc: "Play the platformer full of devios tricks and turns!",
+    src: "games/level-devil.html",
     featured: true
   },
   // Add more games above this line, like this:
