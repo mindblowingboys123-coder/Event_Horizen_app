@@ -76,6 +76,17 @@ window.GAMES = [
     src: "games/bank-robbery2.html",
     featured: true
   },
+
+  {
+    id: "eaglecraft",
+    title: "Eagle Craft",
+    category: "Sandbox",
+    emoji: "⛏️",
+    hue: 120,
+    desc: "Play in a sandbox, build anything, or survive!",
+    src: "games/eaglecraft.html",
+    featured: true
+  },
   // Add more games above this line, like this:
   // { id:"example", title:"Example", category:"Arcade", emoji:"🚀", hue:210, desc:"Replace me.", src:"games/example.html" },
 
